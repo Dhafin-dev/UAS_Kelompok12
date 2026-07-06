@@ -14,7 +14,8 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.health_and_safety, size: 100, color: AppColors.primary),
+              Icon(Icons.health_and_safety,
+                  size: 100, color: AppColors.primary),
               SizedBox(height: 24),
               Text(
                 "Cek Status Obesitasmu",
@@ -22,7 +23,7 @@ class HomeScreen extends StatelessWidget {
               ),
               SizedBox(height: 12),
               Text(
-                "Jawab beberapa pertanyaan singkat untuk mengetahui profil kesehatanmu menggunakan teknologi AI.",
+                "Jawab beberapa pertanyaan singkat untuk mengetahui profil kesehatanmu.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
@@ -38,10 +39,12 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => PredictionFormScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => PredictionFormScreen()),
                   );
                 },
-                child: Text("Mulai Cek Sekarang", style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: Text("Mulai Cek Sekarang",
+                    style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
             ],
           ),

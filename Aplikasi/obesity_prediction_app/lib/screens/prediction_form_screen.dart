@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/user_input.dart';
 import '../services/data_scaler.dart';
 import '../services/tflite_service.dart';
-import '../widgets/custom_slider.dart';
+import '../widgets/custom_radio_button.dart';
+import '../widgets/custom_number_input.dart';
 import '../widgets/custom_dropdown.dart';
 import 'result_screen.dart';
 
@@ -19,6 +20,7 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
   bool _isSubmitting = false;
   UserInput userInput = UserInput();
   TFLiteService tfliteService = TFLiteService();
+  final _formKeyStep0 = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -33,10 +35,37 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
     }
   }
 
+  bool _validateCurrentStep() {
+    if (_currentStep == 0) {
+      return _formKeyStep0.currentState?.validate() ?? false;
+    }
+    // Step 1 & 2: semua dropdown/radio sudah punya default value
+    return true;
+  }
+
+  void _onStepContinue() {
+    if (!_validateCurrentStep()) return;
+
+    if (_currentStep < 2) {
+      setState(() => _currentStep += 1);
+    } else {
+      _submitData();
+    }
+  }
+
   void _submitData() async {
+    // Re-validasi step 0 untuk keamanan
+    if (!(_formKeyStep0.currentState?.validate() ?? false)) {
+      setState(() => _currentStep = 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Mohon lengkapi data fisik terlebih dahulu")),
+      );
+      return;
+    }
+
     if (!_isModelLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Model AI sedang dimuat, mohon tunggu...")),
+        SnackBar(content: Text("Model sedang dimuat, mohon tunggu...")),
       );
       return;
     }
@@ -55,7 +84,8 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
     // 4. Pindah ke layar hasil
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => ResultScreen(resultStatus: result)),
+      MaterialPageRoute(
+          builder: (context) => ResultScreen(resultStatus: result)),
     );
   }
 
@@ -66,20 +96,13 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
       body: Column(
         children: [
           // Indikator loading model
-          if (!_isModelLoaded)
-            LinearProgressIndicator(),
+          if (!_isModelLoaded) LinearProgressIndicator(),
 
           Expanded(
             child: Stepper(
               type: StepperType.horizontal,
               currentStep: _currentStep,
-              onStepContinue: () {
-                if (_currentStep < 2) {
-                  setState(() => _currentStep += 1);
-                } else {
-                  _submitData(); // Jika di langkah terakhir, proses AI
-                }
-              },
+              onStepContinue: _onStepContinue,
               onStepCancel: () {
                 if (_currentStep > 0) {
                   setState(() => _currentStep -= 1);
@@ -90,28 +113,38 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : details.onStepContinue,
-                          child: _isSubmitting && isLastStep
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(isLastStep ? "Prediksi Sekarang" : "Lanjut"),
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed:
+                                _isSubmitting ? null : details.onStepContinue,
+                            child: _isSubmitting && isLastStep
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(isLastStep
+                                    ? "Prediksi Sekarang"
+                                    : "Lanjut"),
+                          ),
                         ),
                       ),
                       if (_currentStep > 0) ...[
                         SizedBox(width: 12),
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed: details.onStepCancel,
-                            child: Text("Kembali"),
+                          child: SizedBox(
+                            height: 48,
+                            child: OutlinedButton(
+                              onPressed: details.onStepCancel,
+                              child: Text("Kembali"),
+                            ),
                           ),
                         ),
                       ],
@@ -126,57 +159,66 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
                 Step(
                   title: Text("Fisik"),
                   isActive: _currentStep >= 0,
-                  state: _currentStep > 0 ? StepState.complete : StepState.indexed,
-                  content: Column(
-                    children: [
-                      // Gender
-                      CustomDropdown(
-                        label: "Jenis Kelamin",
-                        value: userInput.gender,
-                        items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Perempuan")),
-                          DropdownMenuItem(value: 1.0, child: Text("Laki-Laki")),
-                        ],
-                        onChanged: (val) => setState(() => userInput.gender = val!),
-                      ),
-                      // Age
-                      CustomSlider(
-                        label: "Usia (Tahun)",
-                        value: userInput.age,
-                        min: 10,
-                        max: 80,
-                        divisions: 70,
-                        onChanged: (val) => setState(() => userInput.age = val),
-                      ),
-                      // Height
-                      CustomSlider(
-                        label: "Tinggi Badan (M)",
-                        value: userInput.height,
-                        min: 1.00,
-                        max: 2.20,
-                        divisions: 120,
-                        onChanged: (val) => setState(() => userInput.height = val),
-                      ),
-                      // Weight
-                      CustomSlider(
-                        label: "Berat Badan (Kg)",
-                        value: userInput.weight,
-                        min: 30,
-                        max: 180,
-                        divisions: 150,
-                        onChanged: (val) => setState(() => userInput.weight = val),
-                      ),
-                      // Family History with Overweight
-                      CustomDropdown(
-                        label: "Riwayat Keluarga Overweight",
-                        value: userInput.familyHistory,
-                        items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak")),
-                          DropdownMenuItem(value: 1.0, child: Text("Ya")),
-                        ],
-                        onChanged: (val) => setState(() => userInput.familyHistory = val!),
-                      ),
-                    ],
+                  state:
+                      _currentStep > 0 ? StepState.complete : StepState.indexed,
+                  content: Form(
+                    key: _formKeyStep0,
+                    child: Column(
+                      children: [
+                        // Gender - Radio Button
+                        CustomRadioButton(
+                          label: "Jenis Kelamin",
+                          value: userInput.gender,
+                          options: [
+                            RadioOption(label: "Perempuan", value: 0.0),
+                            RadioOption(label: "Laki-laki", value: 1.0),
+                          ],
+                          onChanged: (val) =>
+                              setState(() => userInput.gender = val),
+                        ),
+                        // Age - Number Input Box
+                        CustomNumberInput(
+                          label: "Usia",
+                          suffix: "tahun",
+                          hintText: "Contoh: 25",
+                          value: userInput.age,
+                          allowDecimal: false,
+                          onChanged: (val) =>
+                              setState(() => userInput.age = val),
+                        ),
+                        // Height - Number Input Box (meter)
+                        CustomNumberInput(
+                          label: "Tinggi Badan",
+                          suffix: "meter",
+                          hintText: "Contoh: 1.65",
+                          value: userInput.height,
+                          allowDecimal: true,
+                          onChanged: (val) =>
+                              setState(() => userInput.height = val),
+                        ),
+                        // Weight - Number Input Box (kg)
+                        CustomNumberInput(
+                          label: "Berat Badan",
+                          suffix: "kg",
+                          hintText: "Contoh: 65",
+                          value: userInput.weight,
+                          allowDecimal: true,
+                          onChanged: (val) =>
+                              setState(() => userInput.weight = val),
+                        ),
+                        // Family History with Overweight - Radio Button
+                        CustomRadioButton(
+                          label: "Riwayat Obesitas Keluarga",
+                          value: userInput.familyHistory,
+                          options: [
+                            RadioOption(label: "Ya", value: 1.0),
+                            RadioOption(label: "Tidak", value: 0.0),
+                          ],
+                          onChanged: (val) =>
+                              setState(() => userInput.familyHistory = val),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -186,67 +228,86 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
                 Step(
                   title: Text("Diet"),
                   isActive: _currentStep >= 1,
-                  state: _currentStep > 1 ? StepState.complete : StepState.indexed,
+                  state:
+                      _currentStep > 1 ? StepState.complete : StepState.indexed,
                   content: Column(
                     children: [
-                      // FAVC - Sering makan makanan berkalori tinggi
-                      CustomDropdown(
-                        label: "Sering makan berkalori tinggi?",
+                      // FAVC - Radio Button
+                      CustomRadioButton(
+                        label: "Konsumsi Makanan Berkalori Tinggi",
                         value: userInput.favc,
-                        items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak")),
-                          DropdownMenuItem(value: 1.0, child: Text("Ya")),
+                        options: [
+                          RadioOption(label: "Ya", value: 1.0),
+                          RadioOption(label: "Tidak", value: 0.0),
                         ],
-                        onChanged: (val) => setState(() => userInput.favc = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.favc = val),
                       ),
-                      // FCVC - Frekuensi makan sayur
-                      CustomSlider(
-                        label: "Frekuensi Makan Sayur (Setiap Makan, 1-3)",
-                        value: userInput.fcvc,
-                        min: 1,
-                        max: 3,
-                        divisions: 2,
-                        onChanged: (val) => setState(() => userInput.fcvc = val),
-                      ),
-                      // NCP - Jumlah makan utama per hari
-                      CustomSlider(
-                        label: "Makan Utama per Hari (1-4)",
-                        value: userInput.ncp,
-                        min: 1,
-                        max: 4,
-                        divisions: 3,
-                        onChanged: (val) => setState(() => userInput.ncp = val),
-                      ),
-                      // CAEC - Konsumsi makanan di antara jam makan
+                      // FCVC - Dropdown
                       CustomDropdown(
-                        label: "Makan di Antara Jam Makan",
+                        label: "Frekuensi Makan Sayur",
+                        value: userInput.fcvc,
+                        items: [
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("Tidak pernah")),
+                          DropdownMenuItem(
+                              value: 2.0, child: Text("Kadang-kadang")),
+                          DropdownMenuItem(value: 3.0, child: Text("Selalu")),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => userInput.fcvc = val!),
+                      ),
+                      // NCP - Dropdown
+                      CustomDropdown(
+                        label: "Jumlah Makan Utama Harian",
+                        value: userInput.ncp,
+                        items: [
+                          DropdownMenuItem(value: 1.0, child: Text("1 kali")),
+                          DropdownMenuItem(value: 2.0, child: Text("2 kali")),
+                          DropdownMenuItem(value: 3.0, child: Text("3 kali")),
+                          DropdownMenuItem(value: 4.0, child: Text("> 3 kali")),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => userInput.ncp = val!),
+                      ),
+                      // CAEC - Dropdown
+                      CustomDropdown(
+                        label: "Konsumsi Makanan Antara Jam Makan Utama",
                         value: userInput.caec,
                         items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak Pernah")),
-                          DropdownMenuItem(value: 1.0, child: Text("Kadang-kadang")),
+                          DropdownMenuItem(value: 0.0, child: Text("Tidak")),
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("Kadang-kadang")),
                           DropdownMenuItem(value: 2.0, child: Text("Sering")),
                           DropdownMenuItem(value: 3.0, child: Text("Selalu")),
                         ],
-                        onChanged: (val) => setState(() => userInput.caec = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.caec = val!),
                       ),
-                      // CH2O - Konsumsi air harian
-                      CustomSlider(
-                        label: "Konsumsi Air per Hari (Liter, 1-3)",
-                        value: userInput.ch2o,
-                        min: 1,
-                        max: 3,
-                        divisions: 20,
-                        onChanged: (val) => setState(() => userInput.ch2o = val),
-                      ),
-                      // SCC - Monitor kalori
+                      // CH2O - Dropdown
                       CustomDropdown(
-                        label: "Apakah Anda Monitor Kalori?",
-                        value: userInput.scc,
+                        label: "Konsumsi Air Harian",
+                        value: userInput.ch2o,
                         items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak")),
-                          DropdownMenuItem(value: 1.0, child: Text("Ya")),
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("< 1 liter")),
+                          DropdownMenuItem(
+                              value: 2.0, child: Text("1 - 2 liter")),
+                          DropdownMenuItem(
+                              value: 3.0, child: Text("> 2 liter")),
                         ],
-                        onChanged: (val) => setState(() => userInput.scc = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.ch2o = val!),
+                      ),
+                      // SCC - Radio Button
+                      CustomRadioButton(
+                        label: "Pemantauan Konsumsi Kalori",
+                        value: userInput.scc,
+                        options: [
+                          RadioOption(label: "Ya", value: 1.0),
+                          RadioOption(label: "Tidak", value: 0.0),
+                        ],
+                        onChanged: (val) => setState(() => userInput.scc = val),
                       ),
                     ],
                   ),
@@ -258,50 +319,68 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
                 Step(
                   title: Text("Gaya Hidup"),
                   isActive: _currentStep >= 2,
-                  state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+                  state:
+                      _currentStep > 2 ? StepState.complete : StepState.indexed,
                   content: Column(
                     children: [
-                      // SMOKE
-                      CustomDropdown(
-                        label: "Apakah Anda Merokok?",
+                      // SMOKE - Radio Button
+                      CustomRadioButton(
+                        label: "Merokok",
                         value: userInput.smoke,
-                        items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak")),
-                          DropdownMenuItem(value: 1.0, child: Text("Ya")),
+                        options: [
+                          RadioOption(label: "Ya", value: 1.0),
+                          RadioOption(label: "Tidak", value: 0.0),
                         ],
-                        onChanged: (val) => setState(() => userInput.smoke = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.smoke = val),
                       ),
-                      // FAF - Frekuensi aktivitas fisik
-                      CustomSlider(
-                        label: "Aktivitas Fisik per Minggu (0-3 hari)",
+                      // FAF - Dropdown
+                      CustomDropdown(
+                        label: "Frekuensi Aktivitas Fisik (dalam seminggu)",
                         value: userInput.faf,
-                        min: 0,
-                        max: 3,
-                        divisions: 3,
-                        onChanged: (val) => setState(() => userInput.faf = val),
+                        items: [
+                          DropdownMenuItem(
+                              value: 0.0, child: Text("Tidak ada")),
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("1 - 2 hari")),
+                          DropdownMenuItem(
+                              value: 2.0, child: Text("2 - 4 hari")),
+                          DropdownMenuItem(
+                              value: 3.0, child: Text("4 - 5 hari")),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => userInput.faf = val!),
                       ),
-                      // TUE - Waktu penggunaan gadget
-                      CustomSlider(
-                        label: "Waktu Pakai Gadget per Hari (0-2 jam)",
+                      // TUE - Dropdown
+                      CustomDropdown(
+                        label: "Waktu Penggunaan Perangkat Teknologi",
                         value: userInput.tue,
-                        min: 0,
-                        max: 2,
-                        divisions: 20,
-                        onChanged: (val) => setState(() => userInput.tue = val),
+                        items: [
+                          DropdownMenuItem(
+                              value: 0.0, child: Text("0 - 2 jam")),
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("3 - 5 jam")),
+                          DropdownMenuItem(value: 2.0, child: Text("> 5 jam")),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => userInput.tue = val!),
                       ),
-                      // CALC - Konsumsi alkohol
+                      // CALC - Dropdown
                       CustomDropdown(
                         label: "Konsumsi Alkohol",
                         value: userInput.calc,
                         items: [
-                          DropdownMenuItem(value: 0.0, child: Text("Tidak Pernah")),
-                          DropdownMenuItem(value: 1.0, child: Text("Kadang-kadang")),
+                          DropdownMenuItem(
+                              value: 0.0, child: Text("Tidak minum")),
+                          DropdownMenuItem(
+                              value: 1.0, child: Text("Kadang-kadang")),
                           DropdownMenuItem(value: 2.0, child: Text("Sering")),
                           DropdownMenuItem(value: 3.0, child: Text("Selalu")),
                         ],
-                        onChanged: (val) => setState(() => userInput.calc = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.calc = val!),
                       ),
-                      // MTRANS - Transportasi utama
+                      // MTRANS - Dropdown
                       CustomDropdown(
                         label: "Transportasi Utama",
                         value: userInput.mtrans,
@@ -309,10 +388,13 @@ class _PredictionFormScreenState extends State<PredictionFormScreen> {
                           DropdownMenuItem(value: 0.0, child: Text("Mobil")),
                           DropdownMenuItem(value: 1.0, child: Text("Motor")),
                           DropdownMenuItem(value: 2.0, child: Text("Sepeda")),
-                          DropdownMenuItem(value: 3.0, child: Text("Transportasi Umum")),
-                          DropdownMenuItem(value: 4.0, child: Text("Jalan Kaki")),
+                          DropdownMenuItem(
+                              value: 3.0, child: Text("Transportasi Umum")),
+                          DropdownMenuItem(
+                              value: 4.0, child: Text("Jalan Kaki")),
                         ],
-                        onChanged: (val) => setState(() => userInput.mtrans = val!),
+                        onChanged: (val) =>
+                            setState(() => userInput.mtrans = val!),
                       ),
                     ],
                   ),

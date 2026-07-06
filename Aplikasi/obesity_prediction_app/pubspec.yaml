@@ -1,5 +1,5 @@
 name: obesity_prediction_app
-description: Aplikasi prediksi obesitas menggunakan model AI (CNN 1D TFLite)
+description: Aplikasi prediksi obesitas menggunakan model MLP SMOTE TFLite
 publish_to: 'none'
 version: 1.0.0+1
 

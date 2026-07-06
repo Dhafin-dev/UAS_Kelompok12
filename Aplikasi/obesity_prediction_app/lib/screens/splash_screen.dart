@@ -34,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
             Icon(Icons.monitor_weight, size: 120, color: Colors.white),
             SizedBox(height: 24),
             Text(
-              "AI Obesity Predictor",
+              "Obesity Predictor",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 28,

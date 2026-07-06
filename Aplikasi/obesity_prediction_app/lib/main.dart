@@ -11,7 +11,7 @@ class ObesityPredictionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Obesity AI Predictor',
+      title: 'Obesity Predictor',
       theme: AppTheme.lightTheme,
       home: SplashScreen(),
       debugShowCheckedModeBanner: false,

@@ -19,7 +19,8 @@ class TFLiteService {
   // Memuat model dari folder assets
   Future<void> loadModel() async {
     try {
-      _interpreter = await Interpreter.fromAsset('assets/models/model_obesitas_cnn1d.tflite');
+      _interpreter = await Interpreter.fromAsset(
+          'assets/models/model_obesitas_mlp_smote.tflite');
       debugPrint('Model berhasil dimuat!');
     } catch (e) {
       debugPrint('Gagal memuat model: $e');
@@ -32,12 +33,9 @@ class TFLiteService {
       return "Model belum siap";
     }
 
-    // PENTING: CNN 1D membutuhkan dimensi input [Batch, Timesteps, Channels]
-    // Dalam kasus ini shape-nya adalah [1, 16, 1].
-    // Kita ubah list 1D menjadi 3D array:
-    var input = [
-      inputFeatures.map((feature) => [feature]).toList()
-    ];
+    // PENTING: MLP membutuhkan dimensi input [Batch, Features]
+    // Dalam kasus ini shape-nya adalah [1, 16].
+    var input = [inputFeatures];
 
     // Output shape dari model adalah [1, 7] (karena ada 7 class obesitas)
     var output = List.filled(1 * 7, 0.0).reshape([1, 7]);

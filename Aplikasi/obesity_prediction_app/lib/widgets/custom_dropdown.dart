@@ -20,6 +20,7 @@ class CustomDropdown extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: DropdownButtonFormField<double>(
         initialValue: value,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(fontWeight: FontWeight.w500),
